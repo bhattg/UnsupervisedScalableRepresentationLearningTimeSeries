@@ -92,9 +92,10 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                '$(prefix_file)_$(architecture)_encoder.pth').
         """
         self.save_encoder(prefix_file)
+        filehandler = open(prefix_file + '_' + self.architecture + '_classifier.pkl', 'wb')
         pickle.dump(
             self.classifier,
-            prefix_file + '_' + self.architecture + '_classifier.pkl'
+            filehandler
         )
 
     def load_encoder(self, prefix_file):
