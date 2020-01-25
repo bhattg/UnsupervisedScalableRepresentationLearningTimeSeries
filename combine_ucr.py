@@ -6,7 +6,7 @@ import numpy
 import torch
 import sklearn
 import argparse
-
+import pickle 
 import ucr
 import scikit_wrappers
 
@@ -137,13 +137,13 @@ if __name__ == '__main__':
                 )
                 grid_search.fit(split[0], split[2])
             classifier = grid_search.best_estimator_
-        sklearn.externals.joblib.dump(
+        pickle.dump(
             classifier, os.path.join(
                 args.save_path, args.dataset + '_CausalCNN_classifier.pkl'
             )
         )
     else:
-        classifier = sklearn.externals.joblib.load(os.path.join(
+        classifier = pickle.load(os.path.join(
             args.save_path, args.dataset + '_CausalCNN_classifier.pkl'
         ))
 

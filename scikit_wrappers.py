@@ -3,7 +3,7 @@ import numpy
 import torch
 import sklearn
 import sklearn.svm
-import sklearn.externals
+import pickle
 import sklearn.model_selection
 
 import utils
@@ -92,7 +92,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                '$(prefix_file)_$(architecture)_encoder.pth').
         """
         self.save_encoder(prefix_file)
-        sklearn.externals.joblib.dump(
+        pickle.dump(
             self.classifier,
             prefix_file + '_' + self.architecture + '_classifier.pkl'
         )
@@ -124,7 +124,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                and '$(prefix_file)_$(architecture)_encoder.pth').
         """
         self.load_encoder(prefix_file)
-        self.classifier = sklearn.externals.joblib.load(
+        self.classifier = pickle.load(
             prefix_file + '_' + self.architecture + '_classifier.pkl'
         )
 
