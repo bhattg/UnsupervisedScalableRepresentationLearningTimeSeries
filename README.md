@@ -92,3 +92,4 @@ See the code documentation for more details. `ucr.py`, `uea.py`,
 ## Pretrained Models
 
 Pretrained models are available on request.
+
