@@ -5,7 +5,7 @@ import sklearn
 import sklearn.svm
 import pickle
 import sklearn.model_selection
-
+import sys
 import utils
 import losses
 import networks
@@ -49,7 +49,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
     def __init__(self, compared_length, nb_random_samples, negative_penalty,
                  batch_size, nb_steps, lr, penalty, early_stopping,
                  encoder, params, in_channels, out_channels, cuda=False,
-                 gpu=0):
+                 gpu=0, sliding_window=False):
         self.architecture = ''
         self.cuda = cuda
         self.gpu = gpu
@@ -70,6 +70,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
         )
         self.classifier = sklearn.svm.SVC()
         self.optimizer = torch.optim.Adam(self.encoder.parameters(), lr=lr)
+        self.sliding_window=sliding_window
 
     def save_encoder(self, prefix_file):
         """
@@ -239,7 +240,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                 self.optimizer.zero_grad()
                 if not varying:
                     loss = self.loss(
-                        batch, self.encoder, train, save_memory=save_memory
+                        batch, self.encoder, train, save_memory=save_memory, sliding_window =self.sliding_window
                     )
                 else:
                     loss = self.loss_varying(
@@ -316,13 +317,15 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                testing set contains time series of unequal lengths.
         """
         # Check if the given time series have unequal lengths
+
         varying = bool(numpy.isnan(numpy.sum(X)))
 
         test = utils.Dataset(X)
         test_generator = torch.utils.data.DataLoader(
             test, batch_size=batch_size if not varying else 1
         )
-        features = numpy.zeros((numpy.shape(X)[0], self.out_channels))
+        features = numpy.zeros((numpy.shape(X)[0], self.out_channels))  #dimension hopefully #batch_size, outchannel 
+
         self.encoder = self.encoder.eval()
 
         count = 0
@@ -456,7 +459,7 @@ class CausalCNNEncoderClassifier(TimeSeriesEncoderClassifier):
                  negative_penalty=1, batch_size=1, nb_steps=2000, lr=0.001,
                  penalty=1, early_stopping=None, channels=10, depth=1,
                  reduced_size=10, out_channels=10, kernel_size=4,
-                 in_channels=1, cuda=False, gpu=0):
+                 in_channels=1, cuda=False, gpu=0, sliding_window=False):
         super(CausalCNNEncoderClassifier, self).__init__(
             compared_length, nb_random_samples, negative_penalty, batch_size,
             nb_steps, lr, penalty, early_stopping,
@@ -611,11 +614,11 @@ class CausalCNNEncoderClassifier(TimeSeriesEncoderClassifier):
     def set_params(self, compared_length, nb_random_samples, negative_penalty,
                    batch_size, nb_steps, lr, penalty, early_stopping,
                    channels, depth, reduced_size, out_channels, kernel_size,
-                   in_channels, cuda, gpu):
+                   in_channels, cuda, gpu, sliding_window):
         self.__init__(
             compared_length, nb_random_samples, negative_penalty, batch_size,
             nb_steps, lr, penalty, early_stopping, channels, depth,
-            reduced_size, out_channels, kernel_size, in_channels, cuda, gpu
+            reduced_size, out_channels, kernel_size, in_channels, cuda, gpu, sliding_window
         )
         return self
 
@@ -652,7 +655,7 @@ class LSTMEncoderClassifier(TimeSeriesEncoderClassifier):
     def __init__(self, compared_length=50, nb_random_samples=10,
                  negative_penalty=1, batch_size=1, nb_steps=2000, lr=0.001,
                  penalty=1, early_stopping=None, in_channels=1, cuda=False,
-                 gpu=0):
+                 gpu=0, sliding_window=False):
         super(LSTMEncoderClassifier, self).__init__(
             compared_length, nb_random_samples, negative_penalty, batch_size,
             nb_steps, lr, penalty, early_stopping,

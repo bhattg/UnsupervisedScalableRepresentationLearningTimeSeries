@@ -1,6 +1,6 @@
 import torch
 import numpy
-
+import sys
 
 class TripletLoss(torch.nn.modules.loss._Loss):
     """
@@ -38,7 +38,14 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         self.nb_random_samples = nb_random_samples
         self.negative_penalty = negative_penalty
 
-    def forward(self, batch, encoder, train, save_memory=False):
+    def forward(self, batch, encoder, train, save_memory=False, sliding_window=False):
+        '''
+        added a sliding window. This sliding window will get us the x_pos given the x_ref example
+        Note that, default sliding window will be off. Now if the sliding window is True, then this will be evaluated. 
+        For every example in the batch, we select the x_ref. Then choose the beginning point inside the x_ref subsequence
+        Choose if we can take a window of lenght same as x_ref's length from the point of x_pos. Check if left window can be taken 
+        or the right window can be taken (so that we don't breach the indexes).
+        '''
         batch_size = batch.size(0)
         train_size = train.size(0)
         length = min(self.compared_length, train.size(2))
@@ -49,28 +56,33 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         samples = numpy.random.choice(
             train_size, size=(self.nb_random_samples, batch_size)
         )
+
         samples = torch.LongTensor(samples)
 
         # Choice of length of positive and negative samples
-        length_pos_neg = numpy.random.randint(1, high=length + 1)
+        length_pos_neg = numpy.random.randint(1, high=length + 1)  #this is sampling s_pos_neg from [1, length_max]
 
         # We choose for each batch example a random interval in the time
         # series, which is the 'anchor'
+
         random_length = numpy.random.randint(
             length_pos_neg, high=length + 1
-        )  # Length of anchors
+        )  # Length of anchors                             #sampling the lenght of reference from [s_pos_neg, length_max]
+
         beginning_batches = numpy.random.randint(
             0, high=length - random_length + 1, size=batch_size
-        )  # Start of anchors
+        )  # Start of anchors    choosing the reference example starting indices??? 
 
         # The positive samples are chosen at random in the chosen anchors
         beginning_samples_pos = numpy.random.randint(
             0, high=random_length - length_pos_neg + 1, size=batch_size
         )  # Start of positive samples in the anchors
+
         # Start of positive samples in the batch examples
         beginning_positive = beginning_batches + beginning_samples_pos
         # End of positive samples in the batch examples
         end_positive = beginning_positive + length_pos_neg
+
 
         # We randomly choose nb_random_samples potential negative samples for
         # each batch example
@@ -86,12 +98,35 @@ class TripletLoss(torch.nn.modules.loss._Loss):
             ] for j in range(batch_size)]
         ))  # Anchors representations
 
-        positive_representation = encoder(torch.cat(
-            [batch[
-                j: j + 1, :, end_positive[j] - length_pos_neg: end_positive[j]
-            ] for j in range(batch_size)]
-        ))  # Positive samples representations
+        #get strides! left stride  =  U(1, x_ref)
+        # right strdide = U(1, L-x_ref_random_len)
+        # choose the biggest stride among them and then make the x_pos. 
 
+        if sliding_window:
+            for j in range(batch_size):
+                left_sel = False
+                h_r = 1+length-beginning_batches[j]-random_length
+                h_l =  beginning_batches[j]+1
+                if h_r==1:
+                    s_right=0
+                elif h_l==1:
+                    s_left=0
+                else:   
+                    s_right  = numpy.random.randint(1,h_r)
+                    s_left   = numpy.random.randint(1,h_l)
+                if s_left >= s_right:
+                    left_sel=True
+                if left_sel:
+                    beginning_positive[j] = beginning_batches[j]-s_left
+                    end_positive[j]=beginning_batches[j] + random_length - s_left
+                else:
+                    beginning_positive[j] = beginning_batches[j] + s_right
+                    end_positive[j]=beginning_batches[j] + random_length + s_right
+
+
+        positive_representation = encoder(torch.cat(
+        [batch[j: j + 1, :, beginning_positive[j]: end_positive[j]] for j in range(batch_size)]
+        ))  # Positive samples representations 
         size_representation = representation.size(1)
         # Positive loss: -logsigmoid of dot product between anchor and positive
         # representations

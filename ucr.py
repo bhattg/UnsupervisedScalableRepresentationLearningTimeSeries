@@ -83,7 +83,7 @@ def load_UCR_dataset(path, dataset):
     return train, train_labels, test, test_labels
 
 
-def fit_hyperparameters(file, train, train_labels, cuda, gpu,
+def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=False,
                         save_memory=False):
     """
     Creates a classifier from the given set of hyperparameters in the input
@@ -107,6 +107,7 @@ def fit_hyperparameters(file, train, train_labels, cuda, gpu,
     params['in_channels'] = numpy.shape(train)[1]
     params['cuda'] = cuda
     params['gpu'] = gpu
+    params['sliding_window']= sliding_window
     classifier.set_params(**params)
     return classifier.fit(
         train, train_labels, save_memory=save_memory, verbose=True
@@ -136,6 +137,8 @@ def parse_arguments():
     parser.add_argument('--fit_classifier', action='store_true', default=False,
                         help='if not supervised, activate to load the ' +
                              'model and retrain the classifier')
+    parser.add_argument('--sliding_window', type=int , default=0, 
+                        help="If you want to implement the sliding window based x_pos, then keep it 1, default 0")
 
     return parser.parse_args()
 
@@ -151,7 +154,7 @@ if __name__ == '__main__':
     )
     if not args.load and not args.fit_classifier:
         classifier = fit_hyperparameters(
-            args.hyper, train, train_labels, args.cuda, args.gpu
+            args.hyper, train, train_labels, args.cuda, args.gpu, (args.sliding_window==1)
         )
     else:
         classifier = scikit_wrappers.CausalCNNEncoderClassifier()
