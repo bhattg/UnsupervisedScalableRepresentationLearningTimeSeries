@@ -139,8 +139,16 @@ def parse_arguments():
                              'model and retrain the classifier')
     parser.add_argument('--sliding_window', type=int , default=0, 
                         help="If you want to implement the sliding window based x_pos, then keep it 1, default 0")
+    parser.add_argument('--logs', type=str, default='logs/',  help="log dump folder")
 
     return parser.parse_args()
+
+def log(message, path):
+    if !os.isdir(path):
+        os.mkdir(path)
+    filewriter = open(os.path.join(path, "output.txt"), 'a')
+    filewriter.write(message)
+    filewriter.close()
 
 
 if __name__ == '__main__':
@@ -183,4 +191,7 @@ if __name__ == '__main__':
         ) as fp:
             json.dump(classifier.get_params(), fp)
 
-    print("Test accuracy: " + str(classifier.score(test, test_labels)))
+    message = "Test accuracy on dataset {} is {} ".format(args.dataset, classifier.score(test, test_labels)) 
+    self.log(message)
+    print(message)
+    print("Completed !!!! ")
