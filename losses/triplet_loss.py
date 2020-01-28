@@ -39,6 +39,11 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         self.negative_penalty = negative_penalty
 
     def forward(self, batch, encoder, train, save_memory=False, sliding_window=False):
+
+        lambda_1 = 0
+        lambda_2 = 0
+        #print("forward_loss")
+        # sys.exit(0)
         '''
         added a sliding window. This sliding window will get us the x_pos given the x_ref example
         Note that, default sliding window will be off. Now if the sliding window is True, then this will be evaluated. 
@@ -68,7 +73,7 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         random_length = numpy.random.randint(
             length_pos_neg, high=length + 1
         )  # Length of anchors                             #sampling the lenght of reference from [s_pos_neg, length_max]
-
+        ##print('rand length '+str(random_length))
         beginning_batches = numpy.random.randint(
             0, high=length - random_length + 1, size=batch_size
         )  # Start of anchors    choosing the reference example starting indices??? 
@@ -87,7 +92,7 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         # We randomly choose nb_random_samples potential negative samples for
         # each batch example
         beginning_samples_neg = numpy.random.randint(
-            0, high=length - length_pos_neg + 1,
+            0, high=length - random_length + 1,
             size=(self.nb_random_samples, batch_size)
         )
 
@@ -96,14 +101,19 @@ class TripletLoss(torch.nn.modules.loss._Loss):
                 j: j + 1, :,
                 beginning_batches[j]: beginning_batches[j] + random_length
             ] for j in range(batch_size)]
-        ))  # Anchors representations
+        ),fmaps=True)
+        x_ref_local = representation['fmap']
+        x_ref_global = representation['out']
 
         #get strides! left stride  =  U(1, x_ref)
         # right strdide = U(1, L-x_ref_random_len)
         # choose the biggest stride among them and then make the x_pos. 
-
+        sliding_window = True
+        ##print(sliding_window)
         if sliding_window:
             for j in range(batch_size):
+                s_left = -1
+                s_right = -1
                 left_sel = False
                 h_r = 1+length-beginning_batches[j]-random_length
                 h_l =  beginning_batches[j]+1
@@ -119,21 +129,43 @@ class TripletLoss(torch.nn.modules.loss._Loss):
                 if left_sel:
                     beginning_positive[j] = beginning_batches[j]-s_left
                     end_positive[j]=beginning_batches[j] + random_length - s_left
+                    ##print('left' + str(end_positive[j]-beginning_positive[j]))
                 else:
                     beginning_positive[j] = beginning_batches[j] + s_right
                     end_positive[j]=beginning_batches[j] + random_length + s_right
+                    ##print('right' + str(end_positive[j]-beginning_positive[j]))
 
 
         positive_representation = encoder(torch.cat(
         [batch[j: j + 1, :, beginning_positive[j]: end_positive[j]] for j in range(batch_size)]
-        ))  # Positive samples representations 
-        size_representation = representation.size(1)
-        # Positive loss: -logsigmoid of dot product between anchor and positive
-        # representations
-        loss = -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(
-            representation.view(batch_size, 1, size_representation),
-            positive_representation.view(batch_size, size_representation, 1)
+        ),fmaps=True)  # Positive samples representations 
+        x_pos_local = positive_representation['fmap']
+        x_pos_global = positive_representation['out']
+        size_representation = x_ref_global.size(1)
+        
+        loss = 0.        
+        sx = x_pos_local.size(1)
+        sy = x_pos_local.size(2)
+
+        loss_GG = -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(
+            x_ref_global.view(batch_size, 1, size_representation),
+            x_pos_global.view(batch_size, size_representation, 1)
         )))
+
+        loss_LL = 0.
+        for y in range(sy):
+            loss_LL += -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(x_pos_local[:,:,y].squeeze().view(batch_size,1,sx),
+                x_ref_local[:,:,y].squeeze().view(batch_size,sx,1))))
+        loss_LL = (loss_LL/sy)
+
+        loss_GL = 0.
+        for y in range(sy):
+            loss_GL+= -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(x_pos_local[:,:,y].squeeze().view(batch_size,1,sx),
+                x_ref_global.view(batch_size,size_representation,1)).squeeze())).double()
+        
+        loss_GL = (loss_GL/sy)
+
+        loss = loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
 
         # If required, backward through the first computed term of the loss and
         # free from the graph everything related to the positive sample
@@ -144,6 +176,8 @@ class TripletLoss(torch.nn.modules.loss._Loss):
             torch.cuda.empty_cache()
 
         multiplicative_ratio = self.negative_penalty / self.nb_random_samples
+        loss_GL_temp = 0.
+        loss_LL_temp = 0.
         for i in range(self.nb_random_samples):
             # Negative loss: -logsigmoid of minus the dot product between
             # anchor and negative representations
@@ -151,26 +185,57 @@ class TripletLoss(torch.nn.modules.loss._Loss):
                 torch.cat([train[samples[i, j]: samples[i, j] + 1][
                     :, :,
                     beginning_samples_neg[i, j]:
-                    beginning_samples_neg[i, j] + length_pos_neg
+                    beginning_samples_neg[i, j] + random_length
                 ] for j in range(batch_size)])
-            )
-            loss += multiplicative_ratio * -torch.mean(
+            ,fmaps=True)
+            x_neg_local = negative_representation['fmap']
+            x_neg_global = negative_representation['out']
+
+            sx = x_neg_local.size(1)
+            sy = x_neg_local.size(2)
+
+            
+            for y in range(sy):
+                if(y==0):
+                    temp_tensor = torch.nn.functional.logsigmoid(-torch.bmm(x_neg_local[:,:,y].squeeze().view(batch_size,1,sx),
+                        x_ref_global.view(batch_size,size_representation,1)).squeeze()).view(1,batch_size)
+
+                    temp2_tensor = torch.nn.functional.logsigmoid(-torch.bmm(x_neg_local[:,:,y].squeeze().view(batch_size,1,sx),
+                        x_ref_local[:,:,y].view(batch_size,size_representation,1)).squeeze()).view(1,batch_size)
+                else:
+                    temp_tensor = torch.cat((temp_tensor,(torch.nn.functional.logsigmoid(-torch.bmm(x_neg_local[:,:,y].squeeze().view(batch_size,1,sx),
+                        x_ref_global.view(batch_size,size_representation,1)).squeeze()).view(1,batch_size))),0)
+
+                    temp2_tensor = torch.cat((temp2_tensor,(torch.nn.functional.logsigmoid(-torch.bmm(x_neg_local[:,:,y].squeeze().view(batch_size,1,sx),
+                        x_ref_local[:,:,y].view(batch_size,size_representation,1)).squeeze()).view(1,batch_size))),0)
+    
+            if(i==0):
+                loss_GL_temp = temp_tensor.view(1,sy,batch_size)
+                loss_LL_temp = temp2_tensor.view(1,sy,batch_size)
+            else:
+                loss_GL_temp = torch.cat((loss_GL_temp,temp_tensor.view(1,sy,batch_size)),0)
+                loss_LL_temp = torch.cat((loss_LL_temp,temp2_tensor.view(1,sy,batch_size)),0)
+
+            loss_GG += -torch.mean(
                 torch.nn.functional.logsigmoid(-torch.bmm(
-                    representation.view(batch_size, 1, size_representation),
-                    negative_representation.view(
+                    x_ref_global.view(batch_size, 1, size_representation),
+                    x_neg_global.view(
                         batch_size, size_representation, 1
                     )
                 ))
             )
-            # If required, backward through the first computed term of the loss
-            # and free from the graph everything related to the negative sample
-            # Leaves the last backward pass to the training procedure
-            if save_memory and i != self.nb_random_samples - 1:
-                loss.backward(retain_graph=True)
-                loss = 0
-                del negative_representation
-                torch.cuda.empty_cache()
 
+        loss_GL += -(torch.mean(torch.sum(torch.sum(loss_GL_temp,dim=0),dim=0))/sy)
+        loss_LL += -(torch.mean(torch.sum(torch.sum(loss_LL_temp,dim=0),dim=0))/sy)
+        loss = loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
+
+        if save_memory and i != self.nb_random_samples - 1:
+            loss.backward(retain_graph=True)
+            loss = 0
+            del negative_representation
+            torch.cuda.empty_cache()
+
+        print(loss)
         return loss
 
 

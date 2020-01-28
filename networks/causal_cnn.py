@@ -166,5 +166,22 @@ class CausalCNNEncoder(torch.nn.Module):
             causal_cnn, reduce_size, squeeze, linear
         )
 
+    # def forward(self, x):
+    #     return self.network(x)
+    def forward(self, x, fmaps=False):
+        fmap = self.network[0](x)
+        out = self.network[1:](fmap)
+        if fmaps:
+            return{
+            'fmap': self.network[0](x),
+            'out': self.network(x)
+            }
+        return out
+
+class adjustMatrix(torch.nn.Module):
+    def __init__(self, reduced_size,out_channels):
+        super(adjustMatrix, self).__init__()
+        self.linear = torch.nn.Linear(reduced_size, out_channels)                    
+
     def forward(self, x):
-        return self.network(x)
+        return self.linear(x)

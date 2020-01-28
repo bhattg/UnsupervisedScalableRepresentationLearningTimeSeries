@@ -3,6 +3,7 @@ import json
 import math
 import torch
 import numpy
+import os.path
 import pandas
 import argparse
 import scikit_wrappers
@@ -143,10 +144,10 @@ def parse_arguments():
 
     return parser.parse_args()
 
-def log(message, path):
-    if !os.isdir(path):
-        os.mkdir(path)
-    filewriter = open(os.path.join(path, "output.txt"), 'a')
+def log(message):
+    #if (os.path.isdir(path)==False):
+        #os.mkdir(path)
+    filewriter = open( "output.txt", 'a')
     filewriter.write(message)
     filewriter.close()
 
@@ -192,6 +193,6 @@ if __name__ == '__main__':
             json.dump(classifier.get_params(), fp)
 
     message = "Test accuracy on dataset {} is {} ".format(args.dataset, classifier.score(test, test_labels)) 
-    self.log(message)
+    log(message)
     print(message)
     print("Completed !!!! ")
