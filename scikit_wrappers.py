@@ -148,6 +148,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
         # )
         # return self.classifier.fit(features, y)
         self.classifier = sklearn.svm.SVC(
+            kernel='linear',
             C=1 / self.penalty
             if self.penalty is not None and self.penalty > 0
             else numpy.inf,

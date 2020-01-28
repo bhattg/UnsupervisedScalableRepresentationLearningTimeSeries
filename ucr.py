@@ -148,7 +148,7 @@ def log(message):
     #if (os.path.isdir(path)==False):
         #os.mkdir(path)
     filewriter = open( "output.txt", 'a')
-    filewriter.write(message)
+    filewriter.write(message+"\n")
     filewriter.close()
 
 

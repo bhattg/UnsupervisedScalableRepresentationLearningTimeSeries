@@ -38,12 +38,11 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         self.nb_random_samples = nb_random_samples
         self.negative_penalty = negative_penalty
 
-    def forward(self, batch, encoder, train, save_memory=False, sliding_window=False):
+    def forward(self, batch, encoder, train, save_memory=False, sliding_window=False, lambda_0=1, lambda_1=0, lambda_2=0):
+        print(lambda_0)
+        print(lambda_1)
+        print(lambda_2)
 
-        lambda_1 = 0
-        lambda_2 = 0
-        #print("forward_loss")
-        # sys.exit(0)
         '''
         added a sliding window. This sliding window will get us the x_pos given the x_ref example
         Note that, default sliding window will be off. Now if the sliding window is True, then this will be evaluated. 
@@ -58,6 +57,7 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         # For each batch element, we pick nb_random_samples possible random
         # time series in the training set (choice of batches from where the
         # negative examples will be sampled)
+
         samples = numpy.random.choice(
             train_size, size=(self.nb_random_samples, batch_size)
         )
@@ -165,7 +165,7 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         
         loss_GL = (loss_GL/sy)
 
-        loss = loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
+        loss = lambda_0*loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
 
         # If required, backward through the first computed term of the loss and
         # free from the graph everything related to the positive sample
@@ -227,7 +227,7 @@ class TripletLoss(torch.nn.modules.loss._Loss):
 
         loss_GL += -(torch.mean(torch.sum(torch.sum(loss_GL_temp,dim=0),dim=0))/sy)
         loss_LL += -(torch.mean(torch.sum(torch.sum(loss_LL_temp,dim=0),dim=0))/sy)
-        loss = loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
+        loss = lambda_0*loss_GG + lambda_1*loss_GL + lambda_2*loss_LL
 
         if save_memory and i != self.nb_random_samples - 1:
             loss.backward(retain_graph=True)
@@ -235,7 +235,6 @@ class TripletLoss(torch.nn.modules.loss._Loss):
             del negative_representation
             torch.cuda.empty_cache()
 
-        print(loss)
         return loss
 
 
@@ -284,6 +283,7 @@ class TripletLossVaryingLength(torch.nn.modules.loss._Loss):
         # For each batch element, we pick nb_random_samples possible random
         # time series in the training set (choice of batches from where the
         # negative examples will be sampled)
+
         samples = numpy.random.choice(
             train_size, size=(self.nb_random_samples, batch_size)
         )
