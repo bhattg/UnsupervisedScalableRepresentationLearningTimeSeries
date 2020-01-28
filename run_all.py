@@ -6,4 +6,5 @@ parser.add_argument('--path',action='store_true', default="../UCRArchive_2018/",
 args = parser.parse_args()
 
 for files in os.listdir(args.path):
+	print("Executing benchmark : {}".format(files))
 	os.system(' python ucr.py --dataset {} --path ../UCRArchive_2018/ --save_path models/ --hyper default_hyperparameters.json --cuda --gpu 0 '.format(files))
