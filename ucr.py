@@ -85,7 +85,7 @@ def load_UCR_dataset(path, dataset):
 
 
 def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=False,
-                        save_memory=False):
+                        save_memory=False, lambda_0=1, lambda_1=0, lambda_2=0):
     """
     Creates a classifier from the given set of hyperparameters in the input
     file, fits it and return it.
@@ -111,7 +111,7 @@ def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=Fal
     params['sliding_window']= sliding_window
     classifier.set_params(**params)
     return classifier.fit(
-        train, train_labels, save_memory=save_memory, verbose=True
+        train, train_labels, save_memory=save_memory, verbose=True, lambda_0, lambda_1, lambda_2
     )
 
 
@@ -141,7 +141,9 @@ def parse_arguments():
     parser.add_argument('--sliding_window', type=int , default=0, 
                         help="If you want to implement the sliding window based x_pos, then keep it 1, default 0")
     parser.add_argument('--logs', type=str, default='logs/',  help="log dump folder")
-
+    parser.add_argument('--lambda_0', type=int, required=True, help='value of lambda_0 for GG loss')
+    parser.add_argument('--lambda_1', type=int, required=True, help='value of lambda_1 for GL loss')
+    parser.add_argument('--lambda_2', type=int, required=True, help='value of lambda_2 for LL loss')
     return parser.parse_args()
 
 def log(message):
@@ -163,7 +165,7 @@ if __name__ == '__main__':
     )
     if not args.load and not args.fit_classifier:
         classifier = fit_hyperparameters(
-            args.hyper, train, train_labels, args.cuda, args.gpu, (args.sliding_window==1)
+            args.hyper, train, train_labels, args.cuda, args.gpu, (args.sliding_window==1), lambda_0, lambda_1, lambda_2
         )
     else:
         classifier = scikit_wrappers.CausalCNNEncoderClassifier()
