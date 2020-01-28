@@ -76,9 +76,10 @@ The datasets manipulated in this code can be downloaded on the following locatio
 
 ### Training on the UCR and UEA archives
 
-To train a model on the Mallat dataset from the UCR archive:
+* For GG only use lambda_0 to be  1 and rest all 0. Similar things can be derived logically.
+* To train a model on the Mallat dataset from the UCR archive:
 
-`python3 ucr.py --dataset Mallat --path path/to/Mallat/folder/ --save_path '/path/to/save/models' --hyper default_hyperparameters.json [--cuda --gpu 0] [--sliding_window 1]`
+`python3 ucr.py --dataset Mallat --path path/to/Mallat/folder/ --save_path '/path/to/save/models' --hyper default_hyperparameters.json [--cuda --gpu 0] --lambda_0 <GG> --lambda_1 <GL> --lambda_2 <LL>`
 
 Adding the `--load` option allows to load a model from the specified save path.
 Training on the UEA archive with `uea.py` is done in a similar way.
