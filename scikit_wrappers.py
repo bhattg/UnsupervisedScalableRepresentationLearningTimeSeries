@@ -193,7 +193,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                 self.classifier = grid_search.best_estimator_
                 return self.classifier
 
-    def fit_encoder(self, X, y=None, save_memory=False, verbose=False, lambda_0=1, lambda_1=0, lambda_2=0):
+    def fit_encoder(self, X, y=None, lambda_0=1, lambda_1=0, lambda_2=0, save_memory=False, verbose=False):
         """
         Trains the encoder unsupervisedly using the given training data.
 
@@ -208,6 +208,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
         """
         # Check if the given time series have unequal lengths
         varying = bool(numpy.isnan(numpy.sum(X)))
+
 
         train = torch.from_numpy(X)
         if self.cuda:
@@ -241,7 +242,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                 self.optimizer.zero_grad()
                 if not varying:
                     loss = self.loss(
-                        batch, self.encoder, train, save_memory=save_memory, sliding_window =self.sliding_window, lambda_0, lambda_1, lambda_2
+                        batch, self.encoder, train, save_memory=save_memory, sliding_window =self.sliding_window, lambda_0=lambda_0, lambda_1=lambda_1, lambda_2=lambda_2
                     )
                 else:
                     loss = self.loss_varying(
@@ -284,7 +285,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
 
         return self.encoder
 
-    def fit(self, X, y, save_memory=False, verbose=False, lambda_0=1, lambda_1=0, lambda_2=0):
+    def fit(self, X, y, lambda_0=1, lambda_1=0, lambda_2=0, save_memory=False, verbose=False):
         """
         Trains sequentially the encoder unsupervisedly and then the classifier
         using the given labels over the learned features.
@@ -298,8 +299,9 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                the encoder training.
         """
         # Fitting encoder
+
         self.encoder = self.fit_encoder(
-            X, y=y, save_memory=save_memory, verbose=verbose, lambda_0, lambda_1, lambda_2
+            X, y=y, lambda_0=lambda_0, lambda_1=lambda_1, lambda_2=lambda_2, save_memory=save_memory, verbose=verbose
         )
 
         # SVM classifier training

@@ -7,7 +7,7 @@ import os.path
 import pandas
 import argparse
 import scikit_wrappers
-
+import sys
 
 def load_UCR_dataset(path, dataset):
     """
@@ -84,8 +84,8 @@ def load_UCR_dataset(path, dataset):
     return train, train_labels, test, test_labels
 
 
-def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=False,
-                        save_memory=False, lambda_0=1, lambda_1=0, lambda_2=0):
+def fit_hyperparameters(file, train, train_labels, cuda, gpu,lambda_0=1, lambda_1=0, lambda_2=0, sliding_window=False,
+                        save_memory=False):
     """
     Creates a classifier from the given set of hyperparameters in the input
     file, fits it and return it.
@@ -100,6 +100,7 @@ def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=Fal
     """
     classifier = scikit_wrappers.CausalCNNEncoderClassifier()
 
+
     # Loads a given set of hyperparameters and fits a model with those
     hf = open(os.path.join(file), 'r')
     params = json.load(hf)
@@ -111,7 +112,7 @@ def fit_hyperparameters(file, train, train_labels, cuda, gpu, sliding_window=Fal
     params['sliding_window']= sliding_window
     classifier.set_params(**params)
     return classifier.fit(
-        train, train_labels, save_memory=save_memory, verbose=True, lambda_0, lambda_1, lambda_2
+        train, train_labels, lambda_0=lambda_0, lambda_1=lambda_1, lambda_2=lambda_2, save_memory=save_memory, verbose=True 
     )
 
 
@@ -164,8 +165,9 @@ if __name__ == '__main__':
         args.path, args.dataset
     )
     if not args.load and not args.fit_classifier:
+
         classifier = fit_hyperparameters(
-            args.hyper, train, train_labels, args.cuda, args.gpu, (args.sliding_window==1), lambda_0, lambda_1, lambda_2
+            args.hyper, train, train_labels, args.cuda, args.gpu,args.lambda_0, args.lambda_1, args.lambda_2, (args.sliding_window==1)
         )
     else:
         classifier = scikit_wrappers.CausalCNNEncoderClassifier()

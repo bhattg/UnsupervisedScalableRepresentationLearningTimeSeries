@@ -39,9 +39,10 @@ class TripletLoss(torch.nn.modules.loss._Loss):
         self.negative_penalty = negative_penalty
 
     def forward(self, batch, encoder, train, save_memory=False, sliding_window=False, lambda_0=1, lambda_1=0, lambda_2=0):
-        print(lambda_0)
-        print(lambda_1)
-        print(lambda_2)
+        # print(lambda_0)
+        # print(lambda_1)
+        # print(lambda_2)
+        # sys.exit()
 
         '''
         added a sliding window. This sliding window will get us the x_pos given the x_ref example
